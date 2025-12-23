@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/31731c5e9ff84bf1a34d284a77bceda9/artifacts
+end_time: 1766484694096
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: 31731c5e9ff84bf1a34d284a77bceda9
+run_name: fearless-ox-886
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1766484622374
+status: 3
+tags: []
+user_id: bartu

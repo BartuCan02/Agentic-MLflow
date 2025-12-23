@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/9b6c82a3b786492c8f92a7b76a574417/artifacts
+end_time: 1764927732744
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: 9b6c82a3b786492c8f92a7b76a574417
+run_name: mercurial-snipe-679
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764927732730
+status: 3
+tags: []
+user_id: bartu

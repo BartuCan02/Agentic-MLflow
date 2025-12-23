@@ -1,28 +1,54 @@
-import mlflow
 import torch
-from torch import nn, optim
-from utils.data_utils import get_pointcloud_dataloaders
-from utils.train_eval_utils import train_model, evaluate_model
-from models.pointnet import PointNetClassifier
+import torch.nn as nn
+import torch.nn.functional as F
+from models.pointtransformer_v3 import PointTransformerV3Layer
 from .base_agent import BaseAgent
 
-class ClassificationAgent(BaseAgent):
-    def __init__(self, dataset_name="ShapeNetPart", num_classes=16):
-        super().__init__(dataset_name)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = PointNetClassifier(num_classes)
+class PointCloudClassifier(nn.Module):
+    """A full classification model built from PointTransformerV3Layer."""
+    def __init__(self, num_classes, model_dim=64):
+        super().__init__()
+        self.input_proj = nn.Linear(3, model_dim)
+        
+        self.transformer_layers = nn.ModuleList([
+            PointTransformerV3Layer(dim=model_dim, num_neighbors=16),
+            PointTransformerV3Layer(dim=model_dim, num_neighbors=16)
+        ])
+        
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.output_fc = nn.Linear(model_dim, num_classes)
 
-    def run_all_models(self):
-        train_loader, val_loader = get_pointcloud_dataloaders()
-        results = {}
-        with mlflow.start_run(run_name="PointCloud-Classification"):
-            model = self.model.to(self.device)
-            criterion = nn.CrossEntropyLoss()
-            optimizer = optim.Adam(model.parameters(), lr=0.001)
-            train_model(model, train_loader, criterion, optimizer, self.device, epochs=5)
-            acc = evaluate_model(model, val_loader, self.device)
-            mlflow.log_params({"dataset": self.dataset_name, "augmentation": self.augmentation, "model": "PointNet"})
-            mlflow.log_metric("accuracy", acc)
-            mlflow.pytorch.log_model(model, artifact_path="model")
-            results["PointNet"] = {"accuracy": acc}
-        return results
+    def forward(self, point_cloud):
+        # Input shape: [B, N, 3]
+        coords = point_cloud
+        # features shape: [B, N, model_dim]
+        features = self.input_proj(coords)
+        
+        # Manually iterate through layers
+        # The layer expects (B, N, D) for features and coords
+        for layer in self.transformer_layers:
+            features = layer(features, pos=coords)
+        
+        # Pool features across all points. Pool expects (B, D, N)
+        # so we permute before pooling.
+        pooled_features = self.pool(features.permute(0, 2, 1)).squeeze(-1)
+        
+        # Classify
+        logits = self.output_fc(pooled_features)
+        return logits
+
+class ClassificationAgent(BaseAgent):
+    def __init__(self, model_path, num_classes=16):
+        super().__init__("BridgeDataset")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = PointCloudClassifier(num_classes=num_classes)
+        self.model.to(self.device).eval()
+
+    @torch.no_grad()
+    def run_inference(self, point_cloud):
+        point_cloud = point_cloud.to(self.device)
+        logits = self.model(point_cloud)
+        probs = F.softmax(logits, dim=1)
+        conf, pred = probs.max(dim=1)
+        return pred.item(), conf.item()
+

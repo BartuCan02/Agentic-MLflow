@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/5ce65b877aaf4169b203a1a844b9dd14/artifacts
+end_time: 1764676534118
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: 5ce65b877aaf4169b203a1a844b9dd14
+run_name: resilient-loon-847
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764676534106
+status: 3
+tags: []
+user_id: bartu

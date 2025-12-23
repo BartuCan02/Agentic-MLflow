@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/80753c444ee34b8ebece4721488fe02d/artifacts
+end_time: 1764676458438
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: 80753c444ee34b8ebece4721488fe02d
+run_name: fortunate-bat-966
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764676458426
+status: 3
+tags: []
+user_id: bartu

@@ -1,5 +1,0 @@
-torch
-torchvision
-mlflow
-tqdm
-matplotlib

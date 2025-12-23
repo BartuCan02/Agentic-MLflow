@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/a80f1f159df04ee386a7ecb560dcebe2/artifacts
+end_time: 1764677236691
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: a80f1f159df04ee386a7ecb560dcebe2
+run_name: bemused-horse-192
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764677236680
+status: 3
+tags: []
+user_id: bartu

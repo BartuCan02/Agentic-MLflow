@@ -1,52 +1,94 @@
-import mlflow
-import torch
-from torch import nn, optim
-from utils.data_utils import get_pointcloud_dataloaders
-from utils.segmentation_utils import mean_iou
-from models.pointnet import PointNetSegmentation
+
 from .base_agent import BaseAgent
-from tqdm import tqdm
+import open3d.ml as _ml3d
+import open3d.ml.torch as ml3d
+import os
+import numpy as np
+import torch
+import open3d as o3d
 
 class SegmentationAgent(BaseAgent):
-    def __init__(self, dataset_name="ShapeNetPart", num_parts=6):
-        super().__init__(dataset_name)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = PointNetSegmentation(num_parts)
+    def __init__(self, model_path=None, num_parts=6):
+        super().__init__("RandLANetBridge")
+        # Set up paths
+        ckpt_path = "/Users/bartu/Desktop/Bartu/Python Projects/Hiwi_Computer Vision_LLM/agentic_pipeline/Semantic_Segmentation/Results (leave one out cross validation (LOOCV))/bridge_3/logs/RandLANet_SCMSB_torch/checkpoint/ckpt_00280.pth"
+        cfg_path = "/Users/bartu/Desktop/Bartu/Python Projects/Hiwi_Computer Vision_LLM/agentic_pipeline/Semantic_Segmentation/Main/randlanet_cms_bridge.yml"
 
-    def run_all_models(self):
-        train_loader, val_loader = get_pointcloud_dataloaders()
-        results = {}
-        with mlflow.start_run(run_name="PointCloud-Segmentation"):
-            model = self.model.to(self.device)
-            criterion = nn.CrossEntropyLoss()
-            optimizer = optim.Adam(model.parameters(), lr=0.001)
-            for epoch in range(5):
-                model.train()
-                total_loss = 0
-                for pts, lbl, seg in tqdm(train_loader, desc=f"Epoch {epoch+1}/5"):
-                    pts, seg = pts.to(self.device), seg.to(self.device)
-                    optimizer.zero_grad()
-                    preds = model(pts)              # [B,N,num_parts]
-                    preds = preds.view(-1, preds.size(-1))
-                    seg = seg.view(-1)
-                    loss = criterion(preds, seg)
-                    loss.backward()
-                    optimizer.step()
-                    total_loss += loss.item()
-                print(f"Epoch {epoch+1} Loss: {total_loss/len(train_loader):.4f}")
+        # Load config and model
+        cfg = _ml3d.utils.Config.load_from_file(cfg_path)
+        # Use Custom3D dataset for inference on a single file
+        pointcloud_file = "/Users/bartu/Desktop/Bartu/Python Projects/Hiwi_Computer Vision_LLM/agentic_pipeline/Semantic_Segmentation/Main/dataset/bridge_1/bridge_1/bridge_1.txt"
+        pointcloud_dir = os.path.dirname(pointcloud_file)
+        custom_dataset_cfg = {
+            "dataset_path": pointcloud_dir,
+            "train_dir": pointcloud_dir,
+            "test_dir": pointcloud_dir,
+            "val_dir": pointcloud_dir,
+            "name": "Custom3D",
+            "class_names": cfg.dataset.get("class_names", ["part1", "part2", "part3", "part4", "part5", "part6"]),
+            "num_classes": cfg.dataset.get("num_classes", 6)
+        }
+        self.dataset = ml3d.datasets.Custom3D(**custom_dataset_cfg)
+        # Ensure in_channels is set to 10 to match checkpoint
+        model_cfg = dict(cfg.model)
+        model_cfg["in_channels"] = 10
+        self.model = ml3d.models.RandLANet(**model_cfg)
+        device = "cuda" if o3d.core.cuda.is_available() else "cpu"
+        self.pipeline = ml3d.pipelines.SemanticSegmentation(model=self.model, dataset=self.dataset, device=device, **cfg.pipeline)
+        self.pipeline.load_ckpt(ckpt_path)
 
-            # Evaluate
-            model.eval()
-            miou = []
-            with torch.no_grad():
-                for pts, lbl, seg in val_loader:
-                    pts, seg = pts.to(self.device), seg.to(self.device)
-                    out = model(pts).argmax(-1)
-                    miou.append(mean_iou(out, seg, num_classes=model.mlp4[-1].out_channels))
-            mean_iou_val = sum(miou) / len(miou)
-            mlflow.log_params({"dataset": self.dataset_name, "model": "PointNetSeg"})
-            mlflow.log_metric("mean_iou", mean_iou_val)
-            mlflow.pytorch.log_model(model, artifact_path="model")
-            print(f"Validation mIoU: {mean_iou_val:.3f}")
-            results["PointNetSeg"] = {"iou": mean_iou_val}
-        return results
+    def run_inference(self, point_cloud):
+        # point_cloud: torch.Tensor [1, N, 10] or numpy [N, 10]
+        # Convert to numpy if needed
+        if isinstance(point_cloud, torch.Tensor):
+            pc_np = point_cloud.squeeze(0).cpu().numpy()
+        else:
+            pc_np = point_cloud
+        # Split into xyz and features
+        xyz = pc_np[:, :3]
+        features = pc_np[:, 3:]
+        labels = np.zeros(xyz.shape[0], dtype=np.int64)
+        data = {"point": xyz, "feat": features, "label": labels}
+        # Run inference
+        result = self.pipeline.run_inference(data)
+        print("Inference result:", result)
+        # result['predict'] is the segmentation mask
+        seg = result["predict_labels"]
+        return seg
+
+    def load_annotations(self, annotation_file):
+        """
+        Loads ground truth labels from an annotation file.
+        Assumes one label per line, integer encoded.
+        """
+        labels = []
+        with open(annotation_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    labels.append(int(line))
+        return np.array(labels, dtype=np.int64)
+
+    def evaluate_predictions(self, predictions, ground_truth):
+        """
+        Evaluates predictions against ground truth labels.
+        Returns accuracy and per-class IoU.
+        """
+        assert len(predictions) == len(ground_truth), "Prediction and ground truth lengths do not match."
+        accuracy = np.mean(predictions == ground_truth)
+
+        # Compute per-class IoU
+        num_classes = max(np.max(predictions), np.max(ground_truth)) + 1
+        ious = []
+        for cls in range(num_classes):
+            pred_mask = predictions == cls
+            gt_mask = ground_truth == cls
+            intersection = np.logical_and(pred_mask, gt_mask).sum()
+            union = np.logical_or(pred_mask, gt_mask).sum()
+            if union == 0:
+                iou = float('nan')
+            else:
+                iou = intersection / union
+            ious.append(iou)
+        return {"accuracy": accuracy, "ious": ious}
+

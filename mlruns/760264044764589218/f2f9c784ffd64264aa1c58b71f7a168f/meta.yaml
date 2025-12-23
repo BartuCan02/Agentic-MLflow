@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/f2f9c784ffd64264aa1c58b71f7a168f/artifacts
+end_time: 1766144950372
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: f2f9c784ffd64264aa1c58b71f7a168f
+run_name: sedate-wren-407
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1766144950344
+status: 3
+tags: []
+user_id: bartu

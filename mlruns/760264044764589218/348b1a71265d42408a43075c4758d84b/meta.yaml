@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/bartu/Desktop/Bartu/Python Projects/Hiwi Computer Vision
+  & LLM/agentic_pipeline/mlruns/760264044764589218/348b1a71265d42408a43075c4758d84b/artifacts
+end_time: 1764926753815
+entry_point_name: ''
+experiment_id: '760264044764589218'
+lifecycle_stage: active
+run_id: 348b1a71265d42408a43075c4758d84b
+run_name: tasteful-shrimp-862
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764926753803
+status: 3
+tags: []
+user_id: bartu
